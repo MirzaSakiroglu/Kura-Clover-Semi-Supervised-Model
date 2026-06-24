@@ -117,6 +117,10 @@ class RunningAvgMeter(Meter):
             )
         self._values.append(val)
 
+    @property
+    def avg(self) -> Optional[Real]:
+        return self.mean
+
     def __str__(self):
         """ Implement str format """
         return f"Mean: {self.mean} - Min: {self.min} - Max: {self.max}"
@@ -184,11 +188,16 @@ class MeterSet:
         else:
             logger.warning(f"Key {name} not found in self.meters.keys().")
 
-    def update(self, val_dict: dict):
-        if not isinstance(val_dict, dict):
-            raise ValueError("'val_dict' must be a valid dictionary")
-        for k, v in val_dict.items():
-            self._update_one_meter(name=k, val=v.get('val'), n=v.get('n', 1))
+    def update(self, name_or_dict: Union[str, dict], val: Optional[float] = None, n: int = 1):
+        if isinstance(name_or_dict, dict):
+            for k, v in name_or_dict.items():
+                self._update_one_meter(name=k, val=v.get('val'), n=v.get('n', 1))
+        elif isinstance(name_or_dict, str):
+            if val is None:
+                raise ValueError("If 'name_or_dict' is a string, 'val' must be provided.")
+            self._update_one_meter(name_or_dict, val, n)
+        else:
+            raise ValueError("'name_or_dict' must be either a string or a dictionary.")
 
     def reset(self, name: Optional[str] = None):
         """ Reset all Meters in the set """
@@ -277,7 +286,8 @@ class MetricLogger:
             self.results['mc'] = self.mc_metrics.compute()
         except Exception as e:
             logger.error(f"Encountered error when computing metrics. Error: {e}")
-            self.results['avg'], self.results['mc'] = None, None
+            self.results['avg'], self.results['mc'] = {}, {}
+        return self.results['avg'], self.results['mc']
     
     def __str__(self) -> str:
         """

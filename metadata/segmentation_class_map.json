@@ -1,0 +1,8 @@
+{
+    "soil": 0,
+    "quadrat": 1,
+    "clover_leaves": 2,
+    "clover_stems": 3,
+    "person": 4,
+    "other_veg": 5
+}

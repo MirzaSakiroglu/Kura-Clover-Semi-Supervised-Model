@@ -178,6 +178,35 @@ class OptimConfig:
         """
         #
         try:
+            if self.scheduler_params.name == 'SequentialLR':
+                warmup_epochs = getattr(self.scheduler_params, 'warmup_epochs', 5)
+                warmup_start_lr = getattr(self.scheduler_params, 'warmup_start_lr', 1e-6)
+                base_lr = self.optim_params.lr
+                
+                warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+                    self.optimizer, 
+                    start_factor=warmup_start_lr / base_lr,
+                    end_factor=1.0, 
+                    total_iters=warmup_epochs
+                )
+                
+                # Default to CosineAnnealingLR after warmup
+                T_max = getattr(self.scheduler_params, 'T_max', self.conf.training.epochs - warmup_epochs)
+                main_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    self.optimizer,
+                    T_max=T_max,
+                    eta_min=getattr(self.scheduler_params, 'eta_min', 0.0)
+                )
+                
+                scheduler = torch.optim.lr_scheduler.SequentialLR(
+                    self.optimizer,
+                    schedulers=[warmup_scheduler, main_scheduler],
+                    milestones=[warmup_epochs]
+                )
+                self.scheduler = scheduler
+                rank_log(self.conf.is_main, logger.info, f"Instantiated SequentialLR with {warmup_epochs} epochs warmup and CosineAnnealingLR.")
+                return scheduler
+                
             SchedClass = getattr(torch.optim.lr_scheduler, self.scheduler_params.name)
         except AttributeError:
             valid_sched = [
@@ -274,7 +303,6 @@ class EMA:
             else:
                 shadow_param = self.shadow_params[name]
                 shadow_param.mul_(self.decay).add_(param.detach().to('cpu'), alpha=1-self.decay)
-                self.shadow_params[name] = self.decay * self.shadow_params[name] + (1 - self.decay) * param.detach().to('cpu')
                     
     @torch.no_grad()
     def assign_params(self):

@@ -5,7 +5,7 @@ BoMeyering 2025
 """
 
 import torch
-import torch.functional as F
+import torch.nn.functional as F
 from omegaconf import OmegaConf
 from typing import Tuple
 

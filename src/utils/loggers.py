@@ -5,6 +5,7 @@ BoMeyering 2025
 """
 
 import logging
+import logging.handlers
 import torch
 import sys
 import omegaconf
@@ -21,6 +22,7 @@ def setup_loggers(conf):
     """
     filename = conf.model_run + '.log'
     filepath = Path(conf.directories.log_dir) / filename
+    filepath.parent.mkdir(parents=True, exist_ok=True)
 
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     file_handler = logging.handlers.RotatingFileHandler(filepath, 'a', 1000000, 3)

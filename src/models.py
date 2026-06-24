@@ -36,7 +36,9 @@ def create_smp_model(conf: omegaconf.dictconfig.DictConfig) -> torch.nn.Module:
     
     try:
         model_class = getattr(smp, conf.model.architecture.value)
-        model = model_class(**model_config)
+        # Filter out None values so we don't override smp defaults with None
+        clean_config = {k: v for k, v in model_config.items() if v is not None}
+        model = model_class(**clean_config)
 
         return model
     except AttributeError as e:

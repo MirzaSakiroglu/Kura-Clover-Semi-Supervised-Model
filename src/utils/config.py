@@ -90,6 +90,12 @@ class FlexMatch:
     tau: float=0.95
     mapping: str="linear"
     warmup: bool=True
+    lam: float=1.0
+
+@dataclass
+class Wandb:
+    project: str='kura-clover-ssl'
+    tags: List[str]=field(default_factory=list)
 
 @dataclass
 class SMPModelConfig:
@@ -97,7 +103,7 @@ class SMPModelConfig:
     encoder_depth: Optional[int]=None
     encoder_weights: Optional[str]='imagenet'
     input_channels: Optional[int]=3
-    classes: Optional[int]=None
+    classes: Optional[int]=6
 
 @dataclass
 class Model:
@@ -140,6 +146,8 @@ class Scheduler:
     T_0: Optional[int]=None # CosineAnnealingWarmRestarts
     T_mult: int=1 # CosineAnnealingWarmRestarts
     last_epoch: int=-1
+    warmup_epochs: int=5
+    warmup_start_lr: float=0.000001
 
 @dataclass
 class Norm:
@@ -173,6 +181,7 @@ class TrainSupervisedConfig:
     loss: Loss=field(default_factory=Loss)
     batch_size: BatchSize=field(default_factory=BatchSize)
     flexmatch: FlexMatch=field(default_factory=FlexMatch)
+    wandb: Wandb=field(default_factory=Wandb)
 
 @dataclass
 class TrainSemiSupervisedConfig(TrainSupervisedConfig):

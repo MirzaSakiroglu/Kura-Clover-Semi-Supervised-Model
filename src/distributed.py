@@ -8,24 +8,21 @@ import os
 import torch.distributed as dist
 
 def setup_ddp(backend: str):
-    """ Set up DDP """
-    dist.init_process_group(backend=backend, init_method="env://")
+    """ Set up DDP if in a distributed environment """
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+        dist.init_process_group(backend=backend, init_method="env://")
 
 def shutdown_ddp():
     """ Shutdown the distributed processes """
-    dist.barrier()
-    dist.destroy_process_group()
+    if dist.is_available() and dist.is_initialized():
+        dist.barrier()
+        dist.destroy_process_group()
 
 def set_env_ranks(conf: OmegaConf):
-    """ Get ranks and world size for a process """
-
-    rank = int(os.environ["RANK"])
-    local_rank = int(os.environ["LOCAL_RANK"])
-    world_size = int(os.environ["WORLD_SIZE"])
-
-    conf.rank = rank
-    conf.local_rank = local_rank
-    conf.world_size = world_size
+    """ Get ranks and world size for a process, defaulting to single-process if not distributed """
+    conf.rank = int(os.environ.get("RANK", 0))
+    conf.local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    conf.world_size = int(os.environ.get("WORLD_SIZE", 1))
     conf.is_main = is_main_process()
 
 def is_main_process() -> bool:

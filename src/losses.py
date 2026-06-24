@@ -911,8 +911,9 @@ class TvmfDiceLoss(torch.nn.Module):
         if self.lambda_k is not None:
             dsc_t = torch.mean(class_loss.detach())
             kappa = dsc_t * self.lambda_k
-            dist.all_reduce(kappa, op=dist.ReduceOp.SUM)
-            kappa /= dist.get_world_size()
+            if dist.is_available() and dist.is_initialized():
+                dist.all_reduce(kappa, op=dist.ReduceOp.SUM)
+                kappa /= dist.get_world_size()
             self.kappa = kappa.item()
             
         return loss

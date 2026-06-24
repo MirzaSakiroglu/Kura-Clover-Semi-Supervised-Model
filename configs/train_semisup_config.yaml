@@ -1,0 +1,67 @@
+model_run: kura_flexmatch_tvmf
+
+device: cuda
+
+images:
+  resize: [1024, 1024]
+
+metadata:
+  norm_path: metadata/dataset_norm.json
+  
+logging_level: INFO
+tb_exclude_classes: []
+
+directories:
+  train_labeled_dir: data/processed/train/labeled
+  train_unlabeled_dir: data/processed/train/unlabeled
+  val_dir: data/processed/val
+  test_dir: data/processed/test
+  output_dir: outputs
+  checkpoint_dir: model_checkpoints
+  log_dir: logs/run_logs
+
+training:
+  epochs: 100
+  sanity_check: True
+
+model:
+  architecture: SEGFORMER
+  config:
+    encoder_name: mit_b1
+    encoder_weights: imagenet
+    classes: 6
+
+optimizer:
+  name: AdamW
+  weight_decay: 0.0001
+  filter_bias_and_bn: True
+  ema: True
+  ema_decay: 0.9
+  optimizer_params:
+    lr: 0.0005
+
+scheduler:
+  name: SequentialLR
+  warmup_epochs: 5
+  warmup_start_lr: 0.000001
+
+loss:
+  name: TVMFDICELOSS
+  kappa: 0
+  lambda_k: 1.0
+  smooth: 0.05
+  reduction: mean
+  exclude_empty_target: true
+
+batch_size:
+  labeled: 2
+  unlabeled: 2
+
+flexmatch:
+  tau: 0.95
+  mapping: linear
+  warmup: true
+
+wandb:
+  project: kura-clover-ssl
+  tags: [flexmatch, tvmf-dice, 6class]
