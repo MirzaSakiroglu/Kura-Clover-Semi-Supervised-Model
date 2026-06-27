@@ -21,7 +21,7 @@ directories:
   log_dir: logs/run_logs
 
 training:
-  epochs: 10
+  epochs: 100
   sanity_check: True
 
 model:
