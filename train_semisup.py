@@ -137,11 +137,11 @@ def main(conf: omegaconf.OmegaConf=conf):
     )
     
     val_sampler = DistributedSampler(
-        dataset=val_ds, 
+        dataset=val_ds,
         num_replicas=conf.world_size,
-        rank=conf.rank, 
-        shuffle=False, 
-        drop_last=True
+        rank=conf.rank,
+        shuffle=False,
+        drop_last=False
     )
 
     # DataLoaders
@@ -160,10 +160,10 @@ def main(conf: omegaconf.OmegaConf=conf):
     )
 
     val_loader = DataLoader(
-        dataset=val_ds, 
+        dataset=val_ds,
         batch_size=conf.batch_size.labeled,
         sampler=val_sampler,
-        drop_last=True
+        drop_last=False
     )
 
     optim_config = OptimConfig(conf=conf, model=model)
