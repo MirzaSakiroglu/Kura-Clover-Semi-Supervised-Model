@@ -54,8 +54,8 @@ loss:
   exclude_empty_target: true
 
 batch_size:
-  labeled: 2
-  unlabeled: 2
+  labeled: 4
+  unlabeled: 4
 
 flexmatch:
   tau: 0.95
