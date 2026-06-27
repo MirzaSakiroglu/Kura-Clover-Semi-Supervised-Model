@@ -13,7 +13,7 @@ from datetime import datetime
 from src.utils.loggers import rank_log
 
 class CheckpointManager:
-    def __init__(self, conf: OmegaConf, monitor: str='val_loss', monitor_op=torch.lt, top_k: int=5):
+    def __init__(self, conf: OmegaConf, monitor: str='val_loss', monitor_op=lambda a, b: a < b, top_k: int=5):
         self.checkpoint_dir = Path(conf.directories.checkpoint_dir)
         self.model_run_name = conf.model_run
         self.monitor = monitor
