@@ -78,7 +78,9 @@ def main():
     parser.add_argument('--use-ema', action='store_true', help='Use EMA weights if available')
     args = parser.parse_args()
 
-    conf = OmegaConf.load(args.config)
+    from src.utils.config import TrainSemiSupervisedConfig
+    yaml_conf = OmegaConf.load(args.config)
+    conf = OmegaConf.merge(OmegaConf.structured(TrainSemiSupervisedConfig), yaml_conf)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Rebuild model
@@ -86,7 +88,7 @@ def main():
     
     # Load checkpoint
     print(f"Loading checkpoint {args.checkpoint}...")
-    chkpt = torch.load(args.checkpoint, map_location=device)
+    chkpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     
     if args.use_ema and 'ema_shadow_params' in chkpt:
         state_dict = chkpt['ema_shadow_params']

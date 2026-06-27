@@ -50,7 +50,6 @@ class CheckpointManager:
                 'epoch': epoch,
                 'monitor': self.monitor,
                 self.monitor: current,
-                **self.conf
             }
             torch.save(chkpt, chkpt_filename)
             self.most_recent_checkpoint.append((epoch, chkpt_filename))
@@ -65,7 +64,6 @@ class CheckpointManager:
                 'epoch': epoch,
                 'monitor': self.monitor,
                 self.monitor: current,
-                **self.conf
             }
             torch.save(chkpt, chkpt_filename)
             rank_log(self.conf.is_main, self.logger.info, f"Epoch {epoch} - '{self.monitor}' improved or is in top-{self.top_k}. Saved to {chkpt_filename}")
