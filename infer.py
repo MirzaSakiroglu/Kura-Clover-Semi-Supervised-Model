@@ -22,12 +22,12 @@ CLASS_NAMES = {
 def get_class_colors():
     # BGR format for OpenCV
     return {
-        0: [101, 119, 139], # soil
-        1: [255, 255, 255], # quadrat
-        2: [34, 139, 34],   # clover_leaves
-        3: [144, 238, 144], # clover_stems
-        4: [0, 0, 255],     # person
-        5: [0, 165, 255],   # other_veg
+        0: [19, 69, 139],   # soil - brown
+        1: [255, 255, 255], # quadrat - white
+        2: [0, 255, 0],     # clover_leaves - bright green
+        3: [144, 238, 144], # clover_stems - light green
+        4: [0, 0, 255],     # person - red
+        5: [0, 165, 255],   # other_veg - orange
     }
 
 def apply_color_map(mask, color_map):
@@ -93,9 +93,8 @@ def sliding_window_inference(model, image, tile_size=(1024, 1024), step_size=(51
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='configs/train_semisup_config.yaml')
-    parser.add_argument('--checkpoint', type=str, required=True)
-    parser.add_argument('--input-dir', type=str, required=True)
-    parser.add_argument('--output-dir', type=str, required=True)
+    parser.add_argument('--checkpoint', type=str, required=True, help='Checkpoint filename (just the .pth name) inside model_checkpoints/')
+    parser.add_argument('--input-dir', type=str, default=None)
     parser.add_argument('--use-ema', action='store_true', help='Use EMA weights if available')
     parser.add_argument('--heatmaps', action='store_true', help='Save per-class confidence heatmaps')
     args = parser.parse_args()
@@ -105,12 +104,23 @@ def main():
     conf = OmegaConf.merge(OmegaConf.structured(TrainSemiSupervisedConfig), yaml_conf)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # Resolve checkpoint path — search model_checkpoints/ subdirs if not an absolute path
+    chkpt_path = args.checkpoint
+    if not os.path.isabs(chkpt_path) and not os.path.exists(chkpt_path):
+        matches = glob.glob(os.path.join(conf.directories.checkpoint_dir, '**', chkpt_path), recursive=True)
+        if not matches:
+            raise FileNotFoundError(f"Checkpoint '{chkpt_path}' not found under {conf.directories.checkpoint_dir}/")
+        chkpt_path = matches[0]
+
+    # Resolve output dir to outputs/ inside the project
+    output_dir = conf.directories.output_dir
+
     # Rebuild model
     model = create_smp_model(conf).to(device)
 
     # Load checkpoint
-    print(f"Loading checkpoint {args.checkpoint}...")
-    chkpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    print(f"Loading checkpoint {chkpt_path}...")
+    chkpt = torch.load(chkpt_path, map_location=device, weights_only=False)
 
     if args.use_ema and 'ema_shadow_params' in chkpt:
         state_dict = chkpt['ema_shadow_params']
@@ -131,12 +141,21 @@ def main():
     model.load_state_dict(new_state_dict)
     model.eval()
 
-    os.makedirs(os.path.join(args.output_dir, 'masks'), exist_ok=True)
-    os.makedirs(os.path.join(args.output_dir, 'overlays'), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'masks'), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'overlays'), exist_ok=True)
 
     color_map = get_class_colors()
 
-    img_paths = glob.glob(os.path.join(args.input_dir, '*.*'))
+    # Hardcoded images — val image and one unlabeled image
+    hardcoded_images = [
+        'data/processed/val/images/Ta01935_20170703.jpg',
+        'data/processed/train/unlabeled/images/Ta02136_20170608.jpg',
+    ]
+
+    if args.input_dir:
+        img_paths = glob.glob(os.path.join(args.input_dir, '*.*'))
+    else:
+        img_paths = hardcoded_images
     for img_path in tqdm(img_paths, desc="Inference"):
         img = cv2.imread(img_path)
         if img is None:
@@ -147,16 +166,18 @@ def main():
         mask, probs = sliding_window_inference(model, img, tile_size=(1024, 1024), step_size=(512, 512), device=device)
 
         # Save raw mask
-        cv2.imwrite(os.path.join(args.output_dir, 'masks', f"{base_name}.png"), mask)
+        cv2.imwrite(os.path.join(output_dir, 'masks', f"{base_name}.png"), mask)
 
         # Save overlay
         colored_mask = apply_color_map(mask, color_map)
         overlay = cv2.addWeighted(img, 0.6, colored_mask, 0.4, 0)
-        cv2.imwrite(os.path.join(args.output_dir, 'overlays', f"{base_name}_overlay.jpg"), overlay)
+        cv2.imwrite(os.path.join(output_dir, 'overlays', f"{base_name}_overlay.jpg"), overlay)
 
         # Save per-class heatmaps only if requested
         if args.heatmaps:
-            save_heatmaps(probs, base_name, args.output_dir)
+            save_heatmaps(probs, base_name, output_dir)
+
+    print(f"Done. Results saved to {output_dir}/")
 
 if __name__ == '__main__':
     main()

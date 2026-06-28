@@ -21,7 +21,7 @@ directories:
   log_dir: logs/run_logs
 
 training:
-  epochs: 100
+  epochs: 200
   sanity_check: True
 
 model:
@@ -42,7 +42,7 @@ optimizer:
 
 scheduler:
   name: SequentialLR
-  warmup_epochs: 5
+  warmup_epochs: 20
   warmup_start_lr: 0.000001
 
 loss:
@@ -54,13 +54,14 @@ loss:
   exclude_empty_target: true
 
 batch_size:
-  labeled: 4
+  labeled: 8
   unlabeled: 4
 
 flexmatch:
   tau: 0.95
   mapping: linear
   warmup: true
+  lam: 0.25
 
 wandb:
   project: kura-clover-ssl
