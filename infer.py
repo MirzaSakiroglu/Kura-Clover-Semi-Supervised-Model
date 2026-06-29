@@ -163,7 +163,7 @@ def main():
 
         base_name = os.path.splitext(os.path.basename(img_path))[0]
 
-        mask, probs = sliding_window_inference(model, img, tile_size=(1024, 1024), step_size=(512, 512), device=device)
+        mask, probs = sliding_window_inference(model, img, tile_size=(1024, 1024), step_size=(256, 256), device=device)
 
         # Save raw mask
         cv2.imwrite(os.path.join(output_dir, 'masks', f"{base_name}.png"), mask)

@@ -34,7 +34,7 @@ def get_train_transforms(
         albumentations.Compose: A Compose function to use in the datasets. 
     """
     transforms = A.Compose([
-        A.Resize(*resize, p=1),
+        A.Resize(*resize, p=1, interpolation=1, mask_interpolation=0),
         A.Affine(),
         A.SafeRotate(),
         A.HorizontalFlip(),
@@ -63,7 +63,7 @@ def get_val_transforms(
         albumentations.Compose: A Compose function to use in the datasets. 
     """
     transforms = A.Compose([
-        A.Resize(*resize, p=1),
+        A.Resize(*resize, p=1, interpolation=1, mask_interpolation=0),
         A.Normalize(mean=means, std=std),
         ToTensorV2()
     ], additional_targets={'target': 'mask'})
@@ -88,7 +88,7 @@ def get_strong_transforms(
         albumentations.Compose: A Compose function to use in the datasets. 
     """
     transforms = A.Compose([
-        A.Resize(*resize, p=1),
+        A.Resize(*resize, p=1, interpolation=1, mask_interpolation=0),
         A.Affine(),
         A.SafeRotate(),
         A.HorizontalFlip(),
@@ -124,7 +124,7 @@ def get_weak_transforms(
         albumentations.Compose: A Compose function to use in the datasets. 
     """
     transforms = A.Compose([
-        A.Resize(*resize, p=1),
+        A.Resize(*resize, p=1, interpolation=1, mask_interpolation=0),
         A.Affine(),
         A.HorizontalFlip(),
         A.Normalize(mean=means, std=std),

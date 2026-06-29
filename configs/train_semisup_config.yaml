@@ -49,7 +49,7 @@ loss:
   name: TVMFDICELOSS
   kappa: 0
   lambda_k: 1.0
-  smooth: 0.05
+  smooth: 0.0
   reduction: mean
   exclude_empty_target: true
 
@@ -58,7 +58,7 @@ batch_size:
   unlabeled: 4
 
 flexmatch:
-  tau: 0.95
+  tau: 0.80
   mapping: linear
   warmup: true
   lam: 0.25
