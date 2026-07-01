@@ -13,6 +13,7 @@ import sys
 import torch
 import re
 import cv2
+import numpy as np
 import albumentations
 from torch.utils.data import Dataset
 from typing import Union, Any, Tuple
@@ -249,6 +250,9 @@ class LabeledDataset(Dataset):
         # read in images and targets
         img = cv2.imread(str(img_path))
         target = cv2.imread(str(target_path), cv2.IMREAD_GRAYSCALE)
+
+        # Clamp border/void pixels (e.g. 251-255 from annotation tool) to 0
+        target = np.where(target > 5, 0, target).astype(np.uint8)
 
         # transform images and targets
         transformed = self.transforms(image=img, target=target)
