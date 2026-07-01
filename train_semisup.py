@@ -203,6 +203,7 @@ def main(conf: omegaconf.OmegaConf=conf):
             'train_loss': RunningAvgMeter(window_length=15),
             'train_loss_smooth': RunningAvgMeter(window_length=15),
             'validation_loss': RunningAvgMeter(window_length=15),
+            'val_loss_smooth': RunningAvgMeter(window_length=15),
         })
 
         pretrain_trainer = SupervisedTrainer(
