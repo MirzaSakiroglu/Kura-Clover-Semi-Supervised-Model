@@ -122,6 +122,50 @@ class FlexMatchTrainer(Trainer):
             num_classes=conf.model.config.classes, device=conf.device
         )
 
+    def _supervised_pretrain_epoch(self, epoch: int):
+        """Train one epoch on labeled data only (no pseudo-labels)."""
+        self.model.train()
+        self.meters.reset()
+        self.train_metrics.reset()
+
+        train_l_loader, _ = self.train_loaders
+        p_bar = tqdm(enumerate(train_l_loader), total=len(train_l_loader), colour='green')
+
+        for batch_idx, batch in p_bar:
+            self.optimizer.zero_grad(set_to_none=True)
+
+            img, targets, _ = batch
+            img = img.float().to(self.conf.device)
+            targets = targets.long().to(self.conf.device)
+
+            logits = self.model(img)
+            loss = self.criterion(logits, targets)
+            loss.backward()
+            self.optimizer.step()
+            if self.ema:
+                self.ema.update_params()
+
+            preds = torch.argmax(logits, dim=1)
+            self.train_metrics.update(preds=preds, targets=targets)
+            self.meters.update("labeled_loss", loss.item(), img.size(0))
+
+            lr = self.scheduler.get_last_lr()[0] if self.scheduler else self.conf.optimizer.optimizer_params.lr
+            p_bar.set_description(
+                f"Pretrain Epoch: {epoch}. Iter: {batch_idx+1}/{len(train_l_loader)}. LR: {lr:.6f}. Loss: {loss.item():.6f}"
+            )
+
+        if self.scheduler:
+            self.scheduler.step()
+
+        avg_metrics, _ = self.train_metrics.compute()
+        avg_loss = self.meters["labeled_loss"].avg
+
+        if self.is_main:
+            self.logger.info(f"Pretrain Epoch {epoch} - Labeled Loss: {avg_loss:.6f}")
+            self.logger.info(f"Pretrain Epoch {epoch} - Avg Train Metrics: {avg_metrics}")
+
+        return avg_loss
+
     def _train_step(self, batch: Tuple):
         "Train on one batch of labeled and unlabeled images."
         # Unpack batches
@@ -383,6 +427,26 @@ class FlexMatchTrainer(Trainer):
             self.logger.info(
                 f"Training {self.trainer_id} for {self.conf.training.epochs} epochs."
             )
+
+        pretrain_epochs = getattr(self.conf.training, 'supervised_pretrain_epochs', 0)
+        if pretrain_epochs > 0 and self.is_main:
+            self.logger.info(f"Running {pretrain_epochs} supervised pre-training epochs on labeled data.")
+
+        for epoch in range(pretrain_epochs):
+            if self.train_samplers is not None:
+                self.train_samplers[0].set_epoch(epoch)
+            pretrain_loss = self._supervised_pretrain_epoch(epoch + 1)
+            val_loss = self._val_epoch(epoch)
+            model_to_save = self.model.module if hasattr(self.model, 'module') else self.model
+            logs = {
+                'epoch': epoch,
+                'val_loss': val_loss,
+                'model_state_dict': model_to_save.state_dict(),
+            }
+            if self.ema:
+                logs['ema_shadow_params'] = self.ema.shadow_params
+            self.checkpoint_manager(logs=logs)
+
         for epoch in range(self.conf.training.epochs):
 
             # Update the epoch in the DistributedSamplers

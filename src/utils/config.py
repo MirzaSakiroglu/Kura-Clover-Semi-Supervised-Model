@@ -63,6 +63,7 @@ class Directories:
 class Training:
     epochs: int=30
     sanity_check: bool=True
+    supervised_pretrain_epochs: int=0
 
 @dataclass
 class Loss:

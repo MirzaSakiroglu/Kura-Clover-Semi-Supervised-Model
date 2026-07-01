@@ -23,6 +23,7 @@ directories:
 training:
   epochs: 200
   sanity_check: True
+  supervised_pretrain_epochs: 50
 
 model:
   architecture: SEGFORMER
