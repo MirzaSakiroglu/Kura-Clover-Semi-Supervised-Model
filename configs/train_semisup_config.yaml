@@ -22,7 +22,7 @@ directories:
 
 training:
   epochs: 200
-  supervised_pretrain_epochs: 50
+  supervised_pretrain_epochs: 100
   sanity_check: True
 
 model:
