@@ -600,11 +600,11 @@ class SupervisedTrainer(Trainer):
 
             # Tensorboard batch writing
             batch_step = ((epoch-1) * len(self.train_loader)) + batch_idx
-            if dist.get_rank() == 0:
+            if dist.get_rank() == 0 and self.tb_writer is not None:
                 self.tb_writer.add_scalar(
                     tag="batch_loss/train", scalar_value=loss.item(), global_step=batch_step
                 )
-        
+
         # ddp barrier
         dist.barrier()
 
@@ -614,17 +614,17 @@ class SupervisedTrainer(Trainer):
         # Compute epoch metrics and loss
         self.train_metrics.compute()
         rank_log(self.conf.is_main, self.logger.info, self.train_metrics)
-        
+
         # Tensorboard epoch logging
-        if dist.get_rank() == 0:
+        if dist.get_rank() == 0 and self.tb_writer is not None:
             self.tb_writer.add_scalar(
                 tag="epoch_loss/train", scalar_value=avg_loss, global_step=epoch
             )
 
             self._tb_log_metrics(
-                self.train_metrics.results, 
-                main_tag="train_metrics", 
-                global_step=epoch, 
+                self.train_metrics.results,
+                main_tag="train_metrics",
+                global_step=epoch,
                 exclude_idx=self.conf.tb_exclude_classes
             )
 
@@ -695,7 +695,7 @@ class SupervisedTrainer(Trainer):
 
                     # Tensorboard batch writing
                     batch_step = ((epoch-1) * len(self.val_loader)) + batch_idx
-                    if dist.get_rank() == 0:
+                    if dist.get_rank() == 0 and self.tb_writer is not None:
                         self.tb_writer.add_scalar(
                             tag="batch_loss/val", scalar_value=loss.item(), global_step=batch_step
                         )
@@ -710,13 +710,13 @@ class SupervisedTrainer(Trainer):
         rank_log(self.conf.is_main, self.logger.info, self.val_metrics)
 
         # Tensorboard epoch logging
-        if dist.get_rank() == 0:
+        if dist.get_rank() == 0 and self.tb_writer is not None:
             self.tb_writer.add_scalar(
                 tag="epoch_loss/val", scalar_value=avg_loss, global_step=epoch
             )
             self._tb_log_metrics(
-                self.val_metrics.results, 
-                main_tag="val_metrics", 
+                self.val_metrics.results,
+                main_tag="val_metrics",
                 global_step=epoch,
                 exclude_idx=self.conf.tb_exclude_classes
             )
