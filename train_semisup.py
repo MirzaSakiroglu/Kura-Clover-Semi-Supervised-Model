@@ -18,7 +18,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 # Local imports
 from src.models import create_smp_model
 from src.datasets import LabeledDataset, UnlabeledDataset
-from src.trainer import FlexMatchTrainer
+from src.trainer import FlexMatchTrainer, SupervisedTrainer
 from src.metrics import MeterSet, RunningAvgMeter
 from src.losses import get_loss_criterion, read_class_counts
 from src.parameters import OptimConfig, EMA
@@ -187,15 +187,49 @@ def main(conf: omegaconf.OmegaConf=conf):
         'labeled_loss': RunningAvgMeter(window_length=15),
         'unlabeled_loss': RunningAvgMeter(window_length=15),
         'validation_loss': RunningAvgMeter(window_length=15),
+        'train_loss': RunningAvgMeter(window_length=15),
     })
 
+    # Stage 1 — Supervised pretraining on labeled data only
+    pretrain_epochs = getattr(conf.training, 'supervised_pretrain_epochs', 0)
+    if pretrain_epochs > 0:
+        rank_log(conf.is_main, logger.info, f"=== STAGE 1: Supervised pretraining for {pretrain_epochs} epochs ===")
+
+        from src.callbacks import CheckpointManager
+        pretrain_conf = OmegaConf.merge(conf, OmegaConf.create({'training': {'epochs': pretrain_epochs}}))
+        pretrain_checkpoint_manager = CheckpointManager(conf=pretrain_conf, monitor='val_loss', top_k=3)
+
+        pretrain_meters = MeterSet({
+            'train_loss': RunningAvgMeter(window_length=15),
+            'validation_loss': RunningAvgMeter(window_length=15),
+        })
+
+        pretrain_trainer = SupervisedTrainer(
+            name="kura_supervised_pretrain",
+            meter_set=pretrain_meters,
+            tb_writer=None,
+            conf=pretrain_conf,
+            model=model,
+            train_loader=train_l_loader,
+            val_loader=val_loader,
+            criterion=criterion,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            checkpoint_manager=pretrain_checkpoint_manager,
+            sanity_check=False,
+            ema=ema,
+        )
+        pretrain_trainer.train()
+        rank_log(conf.is_main, logger.info, "=== STAGE 1 complete. Starting semi-supervised training with pretrained weights ===")
+
+    # Stage 2 — Semi-supervised FlexMatch training
     # Initialize FlexMatchTrainer
     trainer = FlexMatchTrainer(
         name="kura_flexmatch_trainer",
         meter_set=meters,
-        conf=conf, 
-        model=model, 
-        train_loaders=(train_l_loader, train_u_loader), 
+        conf=conf,
+        model=model,
+        train_loaders=(train_l_loader, train_u_loader),
         train_length=train_length,
         val_loader=val_loader,
         criterion=criterion,
