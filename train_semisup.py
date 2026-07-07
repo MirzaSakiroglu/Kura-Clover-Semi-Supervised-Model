@@ -95,9 +95,11 @@ def main(conf: omegaconf.OmegaConf=conf):
         rank_log(conf.is_main, logger.info, f"Created local model {conf.model.architecture.value} with encoder {conf.model.config.encoder_name} on {conf.device}")
     
     # Augmentation Pipelines
-    train_transforms = get_train_transforms(resize=tuple(conf.images.resize))
-    val_transforms = get_val_transforms(resize=tuple(conf.images.resize))
-    weak_transforms = get_weak_transforms(resize=tuple(conf.images.resize))
+    means = list(conf.metadata.norm.means)
+    std   = list(conf.metadata.norm.std)
+    train_transforms = get_train_transforms(resize=tuple(conf.images.resize), means=means, std=std)
+    val_transforms   = get_val_transforms(resize=tuple(conf.images.resize),   means=means, std=std)
+    weak_transforms  = get_weak_transforms(resize=tuple(conf.images.resize),  means=means, std=std)
 
     # Create Datasets
     train_l_ds = LabeledDataset(
