@@ -9,6 +9,7 @@ from omegaconf import OmegaConf
 from collections import OrderedDict
 
 from src.models import create_smp_model
+from src.transforms import set_normalization_values
 
 CLASS_NAMES = {
     0: 'soil',
@@ -52,7 +53,7 @@ def save_heatmaps(probs, base_name, output_dir):
 
     print(f"  Heatmaps saved to {heatmap_dir}/")
 
-def sliding_window_inference(model, image, tile_size=(1024, 1024), step_size=(512, 512), device='cuda'):
+def sliding_window_inference(model, image, tile_size=(1024, 1024), step_size=(512, 512), device='cuda', mean=None, std=None):
     h, w = image.shape[:2]
     th, tw = tile_size
     sh, sw = step_size
@@ -71,9 +72,9 @@ def sliding_window_inference(model, image, tile_size=(1024, 1024), step_size=(51
             patch = image_padded[y:y+th, x:x+tw]
             patch = cv2.cvtColor(patch, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
 
-            mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-            std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-            patch = (patch - mean) / std
+            mean_ = np.array(mean if mean is not None else [0.485, 0.456, 0.406], dtype=np.float32)
+            std_  = np.array(std  if std  is not None else [0.229, 0.224, 0.225], dtype=np.float32)
+            patch = (patch - mean_) / std_
 
             patch_tensor = torch.from_numpy(patch).permute(2, 0, 1).unsqueeze(0).to(device)
 
@@ -102,6 +103,7 @@ def main():
     from src.utils.config import TrainSemiSupervisedConfig
     yaml_conf = OmegaConf.load(args.config)
     conf = OmegaConf.merge(OmegaConf.structured(TrainSemiSupervisedConfig), yaml_conf)
+    set_normalization_values(conf)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Resolve checkpoint path — search model_checkpoints/ subdirs if not an absolute path
@@ -163,7 +165,7 @@ def main():
 
         base_name = os.path.splitext(os.path.basename(img_path))[0]
 
-        mask, probs = sliding_window_inference(model, img, tile_size=(1024, 1024), step_size=(256, 256), device=device)
+        mask, probs = sliding_window_inference(model, img, tile_size=(1024, 1024), step_size=(256, 256), device=device, mean=list(conf.metadata.norm.means), std=list(conf.metadata.norm.std))
 
         # Save raw mask
         cv2.imwrite(os.path.join(output_dir, 'masks', f"{base_name}.png"), mask)

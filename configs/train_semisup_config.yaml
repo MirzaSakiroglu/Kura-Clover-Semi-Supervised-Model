@@ -47,12 +47,10 @@ scheduler:
   warmup_start_lr: 0.000001
 
 loss:
-  name: TVMFDICELOSS
-  kappa: 0
-  lambda_k: 1.0
+  name: FOCALLOSS
+  gamma: 2.0
   smooth: 0.0
   reduction: mean
-  exclude_empty_target: true
 
 batch_size:
   labeled: 4
